@@ -1,0 +1,3 @@
+module sjdb {
+	exports sjdb;
+}
