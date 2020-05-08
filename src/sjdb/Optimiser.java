@@ -1,6 +1,7 @@
 package sjdb;
 
 import java.util.*;
+import java.util.Map.Entry;
 
 public class Optimiser {
     private Catalogue catalogue;
@@ -73,7 +74,7 @@ public class Optimiser {
     }
 
     public Operator optimise(Product plan) {
-        return null;
+        return plan;
     }
 
     public void addRequiredAttribute(Attribute attr) {
@@ -86,11 +87,29 @@ public class Optimiser {
 
     public void removeRequiredAttribute(Attribute attr) {
         this.requiredAttrs.put(attr, this.requiredAttrs.get(attr) - 1);
+        if (this.requiredAttrs.get(attr) == 0) {
+            this.requiredAttrs.remove(attr);
+        }
     }
 
     public Operator addProjectionsToQuery(Operator plan) {
-        if(this.addProjections) {
+        if (this.addProjections) {
+            List<Attribute> attributes = plan.getOutput().getAttributes();
+            List<Attribute> projectedAttr = new ArrayList<Attribute>();
 
+            for (Map.Entry<Attribute, Integer> reqAttribute : this.requiredAttrs.entrySet()) {
+                Attribute attr = reqAttribute.getKey();
+                if (attributes.contains(attr) && !projectedAttr.contains(attr)) {
+                    projectedAttr.add(attr);
+                }
+            }
+
+            if (projectedAttr.isEmpty()) {
+                plan = new Scan(new NamedRelation("Empty", 0));
+            } else if (projectedAttr.size() != attributes.size()) {
+                plan = new Project(plan, projectedAttr);
+                this.estimator.visit((Project) plan);
+            }
         }
         return plan;
     }
