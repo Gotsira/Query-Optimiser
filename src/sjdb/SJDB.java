@@ -29,10 +29,14 @@ public class SJDB {
 		Estimator est = new Estimator();
 		plan.accept(est);
 		plan.accept(inspector);
-		
+
+		System.out.println("---------------------");
 		// create optimised plan
 		Optimiser opt = new Optimiser(cat);
 		Operator optPlan = opt.optimise(plan);
+
+		optPlan.accept(est);
+		optPlan.accept(inspector);
 	}
 
 }

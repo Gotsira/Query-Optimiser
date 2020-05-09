@@ -9,7 +9,7 @@ public class Optimiser {
     private ArrayList<Predicate> selects, joins;
     private Estimator estimator;
     private boolean addProjections = false;
-    private ArrayList<Operator> allRelations;
+    private HashMap<Relation, Operator> allRelations;
 
     public Optimiser(Catalogue catalogue) {
         this.catalogue = catalogue;
@@ -17,7 +17,7 @@ public class Optimiser {
         this.selects = new ArrayList<Predicate>();
         this.joins = new ArrayList<Predicate>();
         this.estimator = new Estimator();
-        this.allRelations = new ArrayList<Operator>();
+        this.allRelations = new HashMap<Relation, Operator>();
     }
 
     public Operator optimise(Operator plan) {
@@ -40,17 +40,21 @@ public class Optimiser {
         List<Attribute> attributes = r.getAttributes();
         Operator output = new Scan((NamedRelation) r);
 
-        for (Predicate p : this.selects) {
+        Iterator<Predicate> iterator = selects.iterator();
+
+        while (iterator.hasNext()) {
+            Predicate p = iterator.next();
             if (attributes.contains(p.getLeftAttribute())) {
                 output = new Select(output, p);
                 this.estimator.visit((Select) output);
                 removeRequiredAttribute(p.getLeftAttribute());
-                this.selects.remove(p);
+                iterator.remove();
             }
         }
 
+
         output = addProjectionsToQuery(output);
-        this.allRelations.add(output);
+        this.allRelations.put(r, output);
 
         return output;
     }
@@ -72,9 +76,8 @@ public class Optimiser {
             addRequiredAttribute(attr);
         }
         this.addProjections = true;
-        Operator input = optimise(plan.getInput());
-        Project  output = new Project(input, plan.getAttributes());
-        estimator.visit(output);
+        Operator output = optimise(plan.getInput());
+        output = addProjectionsToQuery(output);
         this.addProjections = false;
         return output;
     }
@@ -86,33 +89,44 @@ public class Optimiser {
         optimise(plan.getLeft());
 
         Iterator<Predicate> allJoins = joins.iterator();
-        Join mostRestrictive = null;
+        Operator mostRestrictive = null;
         Predicate selectedPredicate = null;
+        Entry<Relation, Operator> outputLeft = null;
+        Entry<Relation, Operator> outputRight = null;
 
         while (allJoins.hasNext()) {
             Predicate p = allJoins.next();
 
-            Operator left = findRelation(p.getLeftAttribute());
-            Operator right = findRelation(p.getRightAttribute());
+            Entry<Relation, Operator> left = findRelation(p.getLeftAttribute());
+            Entry<Relation, Operator> right = findRelation(p.getRightAttribute());
 
             if (left == null || right == null) {
                 continue;
             }
 
-            Join testJoin = new Join(left, right, p);
+            Join testJoin = new Join(left.getValue(), right.getValue(), p);
             this.estimator.visit(testJoin);
 
             if (mostRestrictive == null || testJoin.getOutput().getTupleCount() < mostRestrictive.getOutput().getTupleCount()) {
                 mostRestrictive = testJoin;
                 selectedPredicate = p;
+                outputLeft = left;
+                outputRight = right;
             }
 
         }
 
+        removeRequiredAttribute(selectedPredicate.getLeftAttribute());
+        if (!selectedPredicate.equalsValue()) {
+            removeRequiredAttribute(selectedPredicate.getRightAttribute());
+        }
         joins.remove(selectedPredicate);
+        mostRestrictive = addProjectionsToQuery(mostRestrictive);
+        allRelations.put(outputLeft.getKey(), mostRestrictive);
+        allRelations.put(outputRight.getKey(), mostRestrictive);
 
 
-        return addProjectionsToQuery(mostRestrictive);
+        return mostRestrictive;
     }
 
     public void addRequiredAttribute(Attribute attr) {
@@ -135,8 +149,11 @@ public class Optimiser {
             List<Attribute> attributes = plan.getOutput().getAttributes();
             List<Attribute> projectedAttr = new ArrayList<Attribute>();
 
-            for (Entry<Attribute, Integer> reqAttribute : this.requiredAttrs.entrySet()) {
-                Attribute attr = reqAttribute.getKey();
+            Iterator<Entry<Attribute, Integer>> iterator = this.requiredAttrs.entrySet().iterator();
+
+            while (iterator.hasNext()) {
+                Entry<Attribute, Integer> pair = iterator.next();
+                Attribute attr = pair.getKey();
                 if (attributes.contains(attr) && !projectedAttr.contains(attr)) {
                     projectedAttr.add(attr);
                 }
@@ -152,13 +169,13 @@ public class Optimiser {
         return plan;
     }
 
-    public Operator findRelation(Attribute attr) {
-        Iterator<Operator> relationIterator = allRelations.iterator();
+    public Entry<Relation, Operator> findRelation(Attribute attr) {
+        Iterator<Entry<Relation, Operator>> relationIterator = allRelations.entrySet().iterator();
 
         while (relationIterator.hasNext()) {
-            Operator current = relationIterator.next();
+            Entry<Relation, Operator> current = relationIterator.next();
 
-            if (current.getOutput().getAttributes().contains(attr)) {
+            if (current.getValue().getOutput().getAttributes().contains(attr)) {
                 return current;
             }
         }
