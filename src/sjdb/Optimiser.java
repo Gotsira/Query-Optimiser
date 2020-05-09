@@ -9,6 +9,7 @@ public class Optimiser {
     private ArrayList<Predicate> selects, joins;
     private Estimator estimator;
     private boolean addProjections = false;
+    private ArrayList<Operator> allRelations;
 
     public Optimiser(Catalogue catalogue) {
         this.catalogue = catalogue;
@@ -16,6 +17,7 @@ public class Optimiser {
         this.selects = new ArrayList<Predicate>();
         this.joins = new ArrayList<Predicate>();
         this.estimator = new Estimator();
+        this.allRelations = new ArrayList<Operator>();
     }
 
     public Operator optimise(Operator plan) {
@@ -47,7 +49,10 @@ public class Optimiser {
             }
         }
 
-        return addProjectionsToQuery(output);
+        output = addProjectionsToQuery(output);
+        this.allRelations.add(output);
+
+        return output;
     }
 
     public Operator optimise(Select plan) {
@@ -67,14 +72,47 @@ public class Optimiser {
             addRequiredAttribute(attr);
         }
         this.addProjections = true;
-        Operator output = optimise(plan.getInput());
-        output = addProjectionsToQuery(output);
+        Operator input = optimise(plan.getInput());
+        Project  output = new Project(input, plan.getAttributes());
+        estimator.visit(output);
         this.addProjections = false;
         return output;
     }
 
     public Operator optimise(Product plan) {
-        return plan;
+
+        // The right side of the product operator is always a relation since it is a left deep tree.
+        optimise(plan.getRight());
+        optimise(plan.getLeft());
+
+        Iterator<Predicate> allJoins = joins.iterator();
+        Join mostRestrictive = null;
+        Predicate selectedPredicate = null;
+
+        while (allJoins.hasNext()) {
+            Predicate p = allJoins.next();
+
+            Operator left = findRelation(p.getLeftAttribute());
+            Operator right = findRelation(p.getRightAttribute());
+
+            if (left == null || right == null) {
+                continue;
+            }
+
+            Join testJoin = new Join(left, right, p);
+            this.estimator.visit(testJoin);
+
+            if (mostRestrictive == null || testJoin.getOutput().getTupleCount() < mostRestrictive.getOutput().getTupleCount()) {
+                mostRestrictive = testJoin;
+                selectedPredicate = p;
+            }
+
+        }
+
+        joins.remove(selectedPredicate);
+
+
+        return addProjectionsToQuery(mostRestrictive);
     }
 
     public void addRequiredAttribute(Attribute attr) {
@@ -97,7 +135,7 @@ public class Optimiser {
             List<Attribute> attributes = plan.getOutput().getAttributes();
             List<Attribute> projectedAttr = new ArrayList<Attribute>();
 
-            for (Map.Entry<Attribute, Integer> reqAttribute : this.requiredAttrs.entrySet()) {
+            for (Entry<Attribute, Integer> reqAttribute : this.requiredAttrs.entrySet()) {
                 Attribute attr = reqAttribute.getKey();
                 if (attributes.contains(attr) && !projectedAttr.contains(attr)) {
                     projectedAttr.add(attr);
@@ -112,5 +150,18 @@ public class Optimiser {
             }
         }
         return plan;
+    }
+
+    public Operator findRelation(Attribute attr) {
+        Iterator<Operator> relationIterator = allRelations.iterator();
+
+        while (relationIterator.hasNext()) {
+            Operator current = relationIterator.next();
+
+            if (current.getOutput().getAttributes().contains(attr)) {
+                return current;
+            }
+        }
+        return null;
     }
 }
