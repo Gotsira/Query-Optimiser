@@ -29,30 +29,38 @@ public class Test {
 	
 	public static Catalogue createCatalogue() {
 		Catalogue cat = new Catalogue();
-		cat.createRelation("A", 100);
-		cat.createAttribute("A", "a1", 100);
-		cat.createAttribute("A", "a2", 15);
-		cat.createRelation("B", 150);
-		cat.createAttribute("B", "b1", 150);
-		cat.createAttribute("B", "b2", 100);
-		cat.createAttribute("B", "b3", 5);
+		cat.createRelation("Employee", 1000);
+		cat.createAttribute("Employee", "ESSN", 1000);
+		cat.createAttribute("Employee", "BDATE", 1000);
+		cat.createAttribute("Employee", "LNAME", 1000);
+		cat.createRelation("Works_On", 2000);
+		cat.createAttribute("Works_On", "PNO", 100);
+		cat.createAttribute("Works_On", "SSN", 1000);
+		cat.createRelation("Project", 100);
+		cat.createAttribute("Project", "PNUMBER", 100);
+		cat.createAttribute("Project", "PNAME", 1000);
 		
 		return cat;
 	}
 
 	public static Operator query(Catalogue cat) throws Exception {
-		Scan a = new Scan(cat.getRelation("A"));
-		Scan b = new Scan(cat.getRelation("B")); 
+		Scan employee = new Scan(cat.getRelation("Employee"));
+		Scan work = new Scan(cat.getRelation("Works_On"));
+		Scan project = new Scan(cat.getRelation("Project"));
 		
-		Product p1 = new Product(a, b);
+		Product p1 = new Product(employee, work);
+		Product p2 = new Product(p1, project);
 		
-		Select s1 = new Select(p1, new Predicate(new Attribute("a2"), new Attribute("b3")));
+		Select s1 = new Select(p2, new Predicate(new Attribute("PNAME"), "Aquarius"));
+		Select s2 = new Select(s1, new Predicate(new Attribute("PNUMBER"), new Attribute("PNO")));
+		Select s3 = new Select(s2, new Predicate(new Attribute("BDATE"), "1957-12-31"));
+//		Select s4 = new Select(s3, new Predicate(new Attribute("ESSN"), new Attribute("SSN")));
 		
 		ArrayList<Attribute> atts = new ArrayList<Attribute>();
-		atts.add(new Attribute("a2"));	
-		atts.add(new Attribute("b1"));	
+		atts.add(new Attribute("LNAME"));
+//		atts.add(new Attribute("b1"));
 		
-		Project plan = new Project(s1, atts);
+		Project plan = new Project(s3, atts);
 		
 		return plan;
 	}
