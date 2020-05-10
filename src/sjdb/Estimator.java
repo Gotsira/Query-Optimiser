@@ -41,7 +41,12 @@ public class Estimator implements PlanVisitor {
 
 		Iterator<Attribute> iter = op.getAttributes().iterator();
 		while (iter.hasNext()) {
-			output.addAttribute(new Attribute(input.getAttribute(iter.next())));
+			try {
+				output.addAttribute(new Attribute(input.getAttribute(iter.next())));
+			} catch (Exception e) {
+				output.addAttribute(new Attribute(iter.next().getName(), 0));
+			}
+
 		}
 		op.setOutput(output);
 	}
