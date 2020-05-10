@@ -2,6 +2,12 @@ package sjdb;
 
 import java.util.Iterator;
 
+/**
+ * This class estimates the cost of a given query plan.
+ *
+ * @author Sirasath Piyapootinun
+ */
+
 public class Estimator implements PlanVisitor {
 
 	public Estimator() {
@@ -25,6 +31,10 @@ public class Estimator implements PlanVisitor {
 		op.setOutput(output);
 	}
 
+	/**
+	 * Create output relation on Project operator.
+	 * @param op Project operator to be visited
+	 */
 	public void visit(Project op) {
 		Relation input = op.getInput().getOutput();
 		Relation output = new Relation(input.getTupleCount());
@@ -36,6 +46,10 @@ public class Estimator implements PlanVisitor {
 		op.setOutput(output);
 	}
 
+	/**
+	 * Create output relation on Select operator.
+	 * @param op Select operator to be visited
+	 */
 	public void visit(Select op) {
 		Relation input = op.getInput().getOutput();
 		Predicate p = op.getPredicate();
@@ -69,6 +83,10 @@ public class Estimator implements PlanVisitor {
 		op.setOutput(output);
 	}
 
+	/**
+	 * Create output relation on Product operator.
+	 * @param op Product operator to be visited
+	 */
 	public void visit(Product op) {
 		Relation leftInput = op.getLeft().getOutput();
 		Relation rightInput = op.getRight().getOutput();
@@ -85,6 +103,10 @@ public class Estimator implements PlanVisitor {
 		op.setOutput(output);
 	}
 
+	/**
+	 * Create output relation on Project operator.
+	 * @param op Join operator to be visited
+	 */
 	public void visit(Join op) {
 		Relation leftInput = op.getLeft().getOutput();
 		Relation rightInput = op.getRight().getOutput();

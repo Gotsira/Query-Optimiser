@@ -1,3 +1,3 @@
 SELECT projid
-FROM  Person, Project, Department
+FROM  Project, Department
 WHERE dept=deptid, deptname="Research"

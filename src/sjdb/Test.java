@@ -18,8 +18,6 @@ public class Test {
 		Operator plan = query(catalogue);
 		plan.accept(estimator);
 		plan.accept(inspector);
-		System.out.println(plan.toString());
-		System.out.println("---------------");
 
 		Optimiser optimiser = new Optimiser(catalogue);
 		Operator planopt = optimiser.optimise(plan);
@@ -54,13 +52,14 @@ public class Test {
 		Select s1 = new Select(p2, new Predicate(new Attribute("PNAME"), "Aquarius"));
 		Select s2 = new Select(s1, new Predicate(new Attribute("PNUMBER"), new Attribute("PNO")));
 		Select s3 = new Select(s2, new Predicate(new Attribute("BDATE"), "1957-12-31"));
-//		Select s4 = new Select(s3, new Predicate(new Attribute("ESSN"), new Attribute("SSN")));
+		Select s4 = new Select(s3, new Predicate(new Attribute("ESSN"), new Attribute("SSN")));
 		
 		ArrayList<Attribute> atts = new ArrayList<Attribute>();
 		atts.add(new Attribute("LNAME"));
+		atts.add(new Attribute("SSN"));
 //		atts.add(new Attribute("b1"));
 		
-		Project plan = new Project(s3, atts);
+		Project plan = new Project(s4, atts);
 		
 		return plan;
 	}
